@@ -1,3 +1,13 @@
+#using ProgressMeter
+#using PmapProgressMeter
+using DataArrays, DataFrames
+using Match
+using ParallelDataTransfer
+using QuadGK
+using Parameters #module
+using Distributions
+using StatsBase
+
 include("parameters.jl")
 include("PopStruct.jl")
 include("functions.jl")
@@ -27,8 +37,8 @@ function main(simulationNumber::Int64,P::InfluenzaParameters)
         latent_ctr[t],symp_ctr[t],asymp_ctr[t]=update_human(humans,P)
 
     end
-    first_inf = find(x-> x.WhoInf == initial && x.WentTo == SYMP,humans)
-    numb_first_inf = length(first_inf)
+    #first_inf = find(x-> x.WhoInf == initial && x.WentTo == SYMP,humans)
+    #numb_first_inf = length(first_inf)
 
     return latent_ctr,symp_ctr,asymp_ctr  ###for run2.jl or RunParallel.jl Run2Parallel.jl
    

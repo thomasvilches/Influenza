@@ -1,3 +1,42 @@
+function make_human_symp(h::Human, P::InfluenzaParameters)
+    ## make the i'th human infected
+  h.health = SYMP    # make the health ->inf
+  h.swap = UNDEF
+  d = LogNormal(P.log_normal_mean,sqrt(P.log_normal_shape))
+  h.statetime = min(15,ceil(rand(d)))
+  h.timeinstate = 0
+  h.WentTo = SYMP
+end
+
+
+function make_human_asymp(h::Human, P::InfluenzaParameters)
+    ## make the i'th human infected
+  h.health = ASYMP    # make the health ->inf
+  h.swap = UNDEF
+  d = LogNormal(P.log_normal_mean,sqrt(P.log_normal_shape))
+  h.statetime = min(15,ceil(rand(d)))
+  h.timeinstate = 0
+  h.WentTo = ASYMP
+end
+
+
+
+function make_human_recovered(h::Human, P::InfluenzaParameters)
+    ## make the i'th human recovered
+  h.health = REC    # make the health -> latent
+  h.swap = UNDEF
+  h.statetime = 999
+  h.timeinstate = 0
+end
+
+function make_human_latent(h::Human, P::InfluenzaParameters)
+    ## make the i'th human infected
+  h.health = LAT    # make the health ->inf
+  h.swap = UNDEF
+  h.statetime = rand(P.Latent_period_Min:P.Latent_period_Max)
+  h.timeinstate = 0
+end
+
 function setup_rand_initial_latent(h::Array{Human}, P::InfluenzaParameters)
     #for i=1:P.initial_infected
       randperson = rand(1:P.grid_size_human)
@@ -6,60 +45,6 @@ function setup_rand_initial_latent(h::Array{Human}, P::InfluenzaParameters)
     #end
     return randperson
 end
-
-
-
-function contact_dynamic(h::Array{Human},P::InfluenzaParameters)
-    NB = N_Binomial()
-    ContactMatrix = ContactMatrixFunc()
-    for i=1:P.grid_size_human
-        if h[i].health==SUSC
-            #NumbContact = NumberOfContacts(h[i])
-            NumbContact = rand(NB[h[i].contact_group])
-            for j=1:NumbContact
-                r = finding_contact(h,i,ContactMatrix)
-                if h[r].health == SYMP
-                    if h[i].vaccinationStatus == 1
-
-                        if rand()<(1-P.precaution_factorV)
-                            if rand() < (P.Prob_transmission*(1-h[i].vaccineEfficacy))
-                                h[i].swap = LAT
-                                h[i].WhoInf = r
-                                break
-                            end
-                        end
-                    else 
-                        if rand()<(1-P.precaution_factorS)
-                            if rand()< P.Prob_transmission
-                                h[i].swap = LAT
-                                h[i].WhoInf = r
-                                break
-                            end
-                        end
-                    end
-
-                elseif h[r].health == ASYMP
-                    if h[i].vaccinationStatus == 1
-                        if rand() < (P.Prob_transmission*(1-h[i].vaccineEfficacy)*(1-P.reduction_factor))
-                            h[i].swap = LAT
-                            h[i].WhoInf = r
-                            break
-                         end
-                    else 
-                        if rand()< (P.Prob_transmission*(1-P.reduction_factor))
-                            h[i].swap = LAT
-                            h[i].WhoInf = r
-                        break
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-end
-
-
 
 function increase_timestate(h::Human,P::InfluenzaParameters)
 
@@ -71,9 +56,9 @@ function increase_timestate(h::Human,P::InfluenzaParameters)
 
         elseif h.health == LAT
             prob = (P.ProbAsympMax - P.ProbAsympMin)*rand()+P.ProbAsympMin
-            if rand() < prob
-                h.swap = ASYMP
-            else h.swap = SYMP
+            if rand() < (1-prob)*(1-h.vaccineEfficacy)
+                h.swap = SYMP
+            else h.swap = ASYMP
             end
         end
     end
@@ -106,122 +91,86 @@ function update_human(h::Array{Human},P::InfluenzaParameters)
     return n1,n2,n3
 end
 
-function make_human_latent(h::Human, P::InfluenzaParameters)
-    ## make the i'th human infected
-  h.health = LAT    # make the health ->inf
-  h.swap = UNDEF
-  h.statetime = rand(P.Latent_period_Min:P.Latent_period_Max)
-  h.timeinstate = 0
-end
-
-function make_human_symp(h::Human, P::InfluenzaParameters)
-    ## make the i'th human infected
-  h.health = SYMP    # make the health ->inf
-  h.swap = UNDEF
-  d = LogNormal(P.log_normal_mean,sqrt(P.log_normal_shape))
-  h.statetime = ceil(rand(d))
-  h.timeinstate = 0
-  h.WentTo = SYMP
-end
-
-
-function make_human_asymp(h::Human, P::InfluenzaParameters)
-    ## make the i'th human infected
-  h.health = ASYMP    # make the health ->inf
-  h.swap = UNDEF
-  d = LogNormal(P.log_normal_mean,sqrt(P.log_normal_shape))
-  h.statetime = ceil(rand(d))
-  h.timeinstate = 0
-  h.WentTo = ASYMP
-end
-
-
-
-function make_human_recovered(h::Human, P::InfluenzaParameters)
-    ## make the i'th human recovered
-  h.health = REC    # make the health -> latent
-  h.swap = UNDEF
-  h.statetime = 999
-  h.timeinstate = 0
-
-end
-
-
 function vaccination(h::Array{Human},P::InfluenzaParameters)
-
-    if (P.GeneralCoverage) > 0
-
+   
+    #MaxFra,MinFra = vector_frailty()
         for i=1:length(h)
-            if rand()<P.GeneralCoverage
+            if rand()< h[i].Coverage
                 h[i].vaccinationStatus = 1
-                h[i].vaccineEfficacy = P.VaccineEfficacy
+                rd = rand()
+                MaxFra,MinFra = FrailtyIndex(h[i])
+                FrIndex = rd*(MaxFra-MinFra)+MinFra
+                h[i].vaccineEfficacy = P.VaccineEfficacy*(1.0-FrIndex)
             end
         end
+
+end
+
+function FrailtyIndex(h::Human)
+
+    if h.age <= 34
+        y = 0.26875-0.00435*h.age
+    elseif h.age <= 69
+        y = 0.01282*h.age-0.30658
+    else
+        y = 0.396+0.0039*h.age
     end
 
-end
+    min1 = max((y-0.05),0.0)
 
-function NumberOfContacts(h1::Human) ###Not using anymore
+    if y+0.05 > 1.0 ##function min was not working, so I did it manually
+        max1 = 1.0
+    else max1 = y+0.05 
+    end
 
-##Age group's mean
-AgeMean = Vector{Float64}(15)
-AgeSD = Vector{Float64}(15)
-
-AgeMean[1] = 10.21
-AgeMean[2] = 14.81
-AgeMean[3] = 18.22
-AgeMean[4] = 17.58
-AgeMean[5] = 13.57
-AgeMean[6] = 13.57
-AgeMean[7] = 14.14
-AgeMean[8] = 14.14
-AgeMean[9] = 13.83
-AgeMean[10] = 13.83
-AgeMean[11] = 12.30
-AgeMean[12] = 12.30
-AgeMean[13] = 9.21
-AgeMean[14] = 9.21
-AgeMean[15] = 6.89
-
-AgeSD[1] = 7.65
-AgeSD[2] = 10.09
-AgeSD[3] = 12.27
-AgeSD[4] = 12.03
-AgeSD[5] = 10.60
-AgeSD[6] = 10.60
-AgeSD[7] = 10.15
-AgeSD[8] = 10.15
-AgeSD[9] = 10.86
-AgeSD[10] = 10.86
-AgeSD[11] = 10.23
-AgeSD[12] = 10.23
-AgeSD[13] = 7.96
-AgeSD[14] = 7.96
-AgeSD[15] = 5.83
-
-p = 1 - (AgeSD[h1.contact_group]^2-AgeMean[h1.contact_group])/(AgeSD[h1.contact_group]^2)
-r = AgeMean[h1.contact_group]^2/(AgeSD[h1.contact_group]^2-AgeMean[h1.contact_group])
-
-nc = NegativeBinomial(r, p)
-
-nc = rand(nc)
-
-return nc
-
+    return max1,min1
 end
 
 
-function finding_contact(h::Array{Human},index::Int64,M)
+function vector_frailty()
 
-    rd = rand()
-    g = h[index].contact_group
-    g2 = findfirst(x -> rd <= x, M[:,g])
-    person = find(x -> x.contact_group == g2,h)
-    person = rand(person)
+    MaxFra = Vector{Float64}(17) ##Frailty index
+    MinFra = Vector{Float64}(17)
 
-    return person
+    MinFra[1]=	0.16
+    MinFra[2]=	0.15
+    MinFra[3]=	0.14
+    MinFra[4]=	0.13
+    MinFra[5]=	0.12
+    MinFra[6]=	0.11
+    MinFra[7]=	0.11
+    MinFra[8]=	0.1
+    MinFra[9]=	0.2
+    MinFra[10]=	0.3
+    MinFra[11]=	0.4
+    MinFra[12]=	0.5
+    MinFra[13]=	0.6
+    MinFra[14]=	0.65
+    MinFra[15]=	0.7
+    MinFra[16]=	0.75
+    MinFra[17]=	0.8
 
+    MaxFra[1]=	0.26
+    MaxFra[2]=	0.25
+    MaxFra[3]=	0.24
+    MaxFra[4]=	0.23
+    MaxFra[5]=	0.22
+    MaxFra[6]=	0.21
+    MaxFra[7]=	0.21
+    MaxFra[8]=	0.2
+    MaxFra[9]=	0.3
+    MaxFra[10]=	0.4
+    MaxFra[11]=	0.5
+    MaxFra[12]=	0.6
+    MaxFra[13]=	0.7
+    MaxFra[14]=	0.75
+    MaxFra[15]=	0.8
+    MaxFra[16]=	0.85
+    MaxFra[17]=	0.9
+
+    return MaxFra,MinFra
 end
+
 
 
 function N_Binomial()
@@ -314,6 +263,7 @@ function N_Binomial()
     p = 1 - (AgeSD[13]^2-AgeMean[13])/(AgeSD[13]^2)
     r = AgeMean[13]^2/(AgeSD[13]^2-AgeMean[13])
     nc13 = NegativeBinomial(r, p)
+    
 
     p = 1 - (AgeSD[14]^2-AgeMean[14])/(AgeSD[14]^2)
     r = AgeMean[14]^2/(AgeSD[14]^2-AgeMean[14])
@@ -326,3 +276,173 @@ function N_Binomial()
     return nc1,nc2,nc3,nc4,nc5,nc6,nc7,nc8,nc9,nc10,nc11,nc12,nc13,nc14,nc15
     
 end
+
+
+
+function contact_dynamic2(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Matrix,Age_group_Matrix,Number_in_age_group,Contact_Matrix_General)
+    NB = N_Binomial()
+    ContactMatrix = ContactMatrixFunc()
+
+    for i=1:P.grid_size_human
+        if h[i].health == SUSC
+            h[i].daily_contacts = rand(NB[h[i].contact_group])
+            for j=1:h[i].daily_contacts
+                r =finding_contact2(h,i,ContactMatrix,Age_group_Matrix,Number_in_age_group)# rand(1:P.grid_size_human)#
+                Contact_Matrix_General[h[i].contact_group,h[r].contact_group]+=1
+                Contact_Matrix_General[h[r].contact_group,h[i].contact_group]+=1
+                if h[r].health == SYMP
+                    if h[i].vaccinationStatus == 1
+                        if rand()<(1-P.precaution_factorV)
+                            if rand() < (P.Prob_transmission*(1-h[i].vaccineEfficacy))
+                                h[i].swap = LAT
+                                h[i].WhoInf = r
+                            else
+                                Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
+                                h[i].NumberFails+=1
+                            end
+
+                        else
+                            Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
+                            h[i].NumberFails+=1
+                        end
+                    else 
+                        if rand()<(1-P.precaution_factorS)
+                            if rand()< P.Prob_transmission
+                                h[i].swap = LAT
+                                h[i].WhoInf = r
+                            else
+                                Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
+                                h[i].NumberFails+=1
+                            end
+                        else
+                            Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
+                            h[i].NumberFails+=1
+                        end
+                    end
+
+                elseif h[r].health == ASYMP
+                    if h[i].vaccinationStatus == 1
+                        if rand() < (P.Prob_transmission*(1-h[i].vaccineEfficacy)*(1-P.reduction_factor))
+                            h[i].swap = LAT
+                            h[i].WhoInf = r
+                        else
+                            Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
+                            h[i].NumberFails+=1
+                        end
+                    else 
+                        if rand()< (P.Prob_transmission*(1-P.reduction_factor))
+                            h[i].swap = LAT
+                            h[i].WhoInf = r
+                        else
+                            Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
+                            h[i].NumberFails+=1
+                        end
+                    end
+                end
+
+            end
+
+        end
+    end ##close Grid human
+
+end
+
+
+function finding_contact2(h::Array{Human},index::Int64,M,Age_group_Matrix,Number_in_age_group)
+
+    #person = find(x -> x.daily_contacts > 0 && x.index != index > 0,h)
+    rd = rand()
+    g = h[index].contact_group
+    g2 = findfirst(x -> rd <= x, M[:,g])
+    aux::Int64 = 0
+
+    while aux == 0
+        person1 = rand(Age_group_Matrix[g2,1:Number_in_age_group[g2]])
+   
+        if person1 != index
+            aux = 1
+            return person1
+        end
+    end
+    
+
+end 
+
+
+
+function contact_dynamic3(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Matrix,Age_group_Matrix,Number_in_age_group,Contact_Matrix_General)
+    NB = N_Binomial()
+    ContactMatrix = ContactMatrixFunc()
+
+    for i=1:P.grid_size_human
+            if h[i].health == SYMP
+                h[i].daily_contacts = rand(NB[h[i].contact_group])
+                for j=1:h[i].daily_contacts
+                    r =finding_contact2(h,i,ContactMatrix,Age_group_Matrix,Number_in_age_group)# rand(1:P.grid_size_human)#
+                    Contact_Matrix_General[h[i].contact_group,h[r].contact_group]+=1
+                    Contact_Matrix_General[h[r].contact_group,h[i].contact_group]+=1
+                    if h[r].health == SUSC
+                        if h[r].vaccinationStatus == 1
+                            if rand()<(1-P.precaution_factorV)
+                                if rand() < (P.Prob_transmission*(1-h[r].vaccineEfficacy))
+                                    h[r].swap = LAT
+                                    h[r].WhoInf = i
+                                else
+                                    Fail_Contact_Matrix[h[r].contact_group,h[i].contact_group]+=1
+                                    h[r].NumberFails+=1
+                                end
+
+                            else
+                                Fail_Contact_Matrix[h[r].contact_group,h[i].contact_group]+=1
+                                h[r].NumberFails+=1
+                            end
+                        else 
+                            if rand()<(1-P.precaution_factorS)
+                                if rand()< P.Prob_transmission
+                                    h[r].swap = LAT
+                                    h[r].WhoInf = i
+                                else
+                                    Fail_Contact_Matrix[h[r].contact_group,h[i].contact_group]+=1
+                                    h[r].NumberFails+=1
+                                end
+                            else
+                                Fail_Contact_Matrix[h[r].contact_group,h[i].contact_group]+=1
+                                h[r].NumberFails+=1
+                            end
+                        end
+                    end
+
+                end
+
+            elseif h[i].health == ASYMP
+                h[i].daily_contacts = rand(NB[h[i].contact_group])
+                for j=1:h[i].daily_contacts
+                    r =finding_contact2(h,i,ContactMatrix,Age_group_Matrix,Number_in_age_group)# rand(1:P.grid_size_human)#
+                    Contact_Matrix_General[h[i].contact_group,h[r].contact_group]+=1
+                    Contact_Matrix_General[h[r].contact_group,h[i].contact_group]+=1
+                    if h[r].health == SUSC
+                        if h[r].vaccinationStatus == 1
+                            if rand() < (P.Prob_transmission*(1-h[r].vaccineEfficacy)*(1-P.reduction_factor))
+                                h[r].swap = LAT
+                                h[r].WhoInf = i
+                            else
+                                Fail_Contact_Matrix[h[r].contact_group,h[i].contact_group]+=1
+                                h[r].NumberFails+=1
+                            end
+                        else 
+                            if rand()< (P.Prob_transmission*(1-P.reduction_factor))
+                                h[r].swap = LAT
+                                h[r].WhoInf = i
+                            else
+                                Fail_Contact_Matrix[h[r].contact_group,h[i].contact_group]+=1
+                                h[r].NumberFails+=1
+                            end
+                        end
+                    end
+                end
+            end
+        
+    end ##close Grid human
+
+end
+

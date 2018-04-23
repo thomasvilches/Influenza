@@ -3,7 +3,7 @@
 
 @with_kw type InfluenzaParameters @deftype Int64
 
-    sim_time = 365
+    sim_time = 150
     grid_size_human = 1000
     initial_infected = 1
 
@@ -14,7 +14,7 @@
     Latent_period_Max = 2
     Latent_period_Min = 1
 
-    Prob_transmission::Float64 = 0.0072
+    Prob_transmission::Float64 = 0.079
     InfectionTimeMax = 7
     InfectionTimeMin = 4
     log_normal_mean::Float64 = 1.0
@@ -26,8 +26,9 @@
     #NumberOfContactsMin = 3
     #NumberOfContactsMax = 12
 
-    GeneralCoverage::Float64 = 0.2
+    GeneralCoverage::Int64 = 1
     VaccineEfficacy::Float64 = 0.2
+    
 
 end
 

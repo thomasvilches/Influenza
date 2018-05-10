@@ -41,15 +41,18 @@ function dataprocess(results,P::InfluenzaParameters,numberofsims)
     resultsAsymp = Vector{Int64}(numberofsims)
     resultsNumAge = Matrix{Int64}(15,numberofsims)
     resultsFailVector = Matrix{Int64}(15,numberofsims)
+    Proportion = Matrix{Float64}(15,numberofsims)
 
     Infection_Matrix = zeros(Int64,15,15)
     Fail_Matrix = zeros(Int64,15,15)
     Infection_Matrix_average = zeros(Float64,15,15)
     Contact_Matrix_General = zeros(Float64,15,15)
+    Risk_in_time =  zeros(Float64,15,P.sim_time)
     for i=1:numberofsims
         resultsL[:,i] = results[i][1]
         resultsS[:,i] = results[i][2]
         resultsA[:,i] = results[i][3]
+        Proportion[:,i] = results[i][13]
         resultsR0[i] = results[i][4]
         resultsSymp[i] = results[i][5]
         resultsAsymp[i] = results[i][6]
@@ -59,14 +62,16 @@ function dataprocess(results,P::InfluenzaParameters,numberofsims)
         Contact_Matrix_General = Contact_Matrix_General + results[i][9]
         resultsNumAge[:,i] = results[i][10]
         resultsFailVector[:,i] = results[i][11]
+        Risk_in_time = Risk_in_time + results[i][12]
 
 
     end
     Infection_Matrix = Infection_Matrix/numberofsims
     Fail_Matrix =  Fail_Matrix/numberofsims
     Contact_Matrix_General = Contact_Matrix_General/numberofsims
-    
-    directory = "March27/"
+    Risk_in_time = Risk_in_time/numberofsims
+
+    directory = "TesteApril23/"
 
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_latent.dat"),resultsL)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_symp.dat"),resultsS)
@@ -79,7 +84,10 @@ function dataprocess(results,P::InfluenzaParameters,numberofsims)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_ContactMatrixGeneral.dat"),Contact_Matrix_General)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_NumAgeGroup.dat"),resultsNumAge)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_FailVector.dat"),resultsFailVector)
+    writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_RiskInTime.dat"),Risk_in_time)
+    writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_Proportion.dat"),Proportion)
 end
+
 function run_main(P::InfluenzaParameters,numberofsims::Int64)
     
     results = pmap((cb, x) -> main(cb, x, P), Progress(numberofsims*P.sim_time), 1:numberofsims, passcallback=true)

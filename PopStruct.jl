@@ -17,7 +17,6 @@ mutable struct Human
     Human() = new(SUSC,UNDEF,0,999,0,0.0,-1,UNDEF,-1,-1,-1,0,-1,0.0,0)
 end
 
-
 function setup_human(h::Array{Human})
 
     for i=1:length(h)
@@ -96,7 +95,7 @@ function settingCov(h::Human)
             end
         end
     end
-
+    return Coverage
 end
 
 
@@ -125,7 +124,7 @@ end
 
 
 
-function ContactMatrixFunc2()
+#=function ContactMatrixFunc2()
 
     ContactMatrix = [0.2287227639 0.0578904992 0.0147540984 0.0100089736 0.0190779014 0.037582766 0.0554200656 0.0437937938 0.0462266543 0.0236936358 0.0184025802 0.0231225914 0.0311685233 0.0212494688 0.0201779473
                     0.1153244252 0.4287439613 0.0616120218 0.020156001899999998 0.015456633099999999 0.03385246670000001 0.0623160373 0.06481481480000001 0.0473252767 0.0254385159 0.035571997699999997 0.0293719404 0.0245318796 0.035699107499999994 0.0276453765
@@ -146,4 +145,4 @@ function ContactMatrixFunc2()
     
     return ContactMatrix
     
-end
+end=#

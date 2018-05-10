@@ -69,10 +69,12 @@ function update_human(h::Array{Human},P::InfluenzaParameters)
     n1::Int64 = 0
     n2::Int64 = 0
     n3::Int64 = 0
+    Incidence = zeros(Int64,15)
     for i=1:P.grid_size_human
         if h[i].swap == LAT
             make_human_latent(h[i],P)
             n1+=1
+            Incidence[h[i].contact_group]+=1
         else
             if h[i].swap == SYMP
             make_human_symp(h[i],P)
@@ -88,7 +90,7 @@ function update_human(h::Array{Human},P::InfluenzaParameters)
             end
         end
     end
-    return n1,n2,n3
+    return n1,n2,n3,Incidence
 end
 
 function vaccination(h::Array{Human},P::InfluenzaParameters)
@@ -279,10 +281,11 @@ end
 
 
 
-function contact_dynamic2(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Matrix,Age_group_Matrix,Number_in_age_group,Contact_Matrix_General)
+function contact_dynamic2(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Matrix,Age_group_Matrix,Number_in_age_group,Contact_Matrix_General)#,Risk_Contact,t::Int64)
     NB = N_Binomial()
     ContactMatrix = ContactMatrixFunc()
-
+    #SuccessVector = zeros(Int64,15)
+    #FailVector = zeros(Int64,15)
     for i=1:P.grid_size_human
         if h[i].health == SUSC
             h[i].daily_contacts = rand(NB[h[i].contact_group])
@@ -296,27 +299,33 @@ function contact_dynamic2(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Ma
                             if rand() < (P.Prob_transmission*(1-h[i].vaccineEfficacy))
                                 h[i].swap = LAT
                                 h[i].WhoInf = r
+                                #SuccessVector[h[i].contact_group]+=1
                             else
                                 Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
                                 h[i].NumberFails+=1
+                               # FailVector[h[i].contact_group]+=1
                             end
 
-                        else
+                        #= else
                             Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
                             h[i].NumberFails+=1
+                            FailVector[h[i].contact_group]+=1 =#
                         end
                     else 
                         if rand()<(1-P.precaution_factorS)
                             if rand()< P.Prob_transmission
                                 h[i].swap = LAT
                                 h[i].WhoInf = r
+                               # SuccessVector[h[i].contact_group]+=1
                             else
                                 Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
                                 h[i].NumberFails+=1
+                               # FailVector[h[i].contact_group]+=1
                             end
-                        else
+                       #=  else
                             Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
                             h[i].NumberFails+=1
+                            FailVector[h[i].contact_group]+=1 =#
                         end
                     end
 
@@ -325,25 +334,31 @@ function contact_dynamic2(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Ma
                         if rand() < (P.Prob_transmission*(1-h[i].vaccineEfficacy)*(1-P.reduction_factor))
                             h[i].swap = LAT
                             h[i].WhoInf = r
+                           # SuccessVector[h[i].contact_group]+=1
                         else
                             Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
                             h[i].NumberFails+=1
+                            #FailVector[h[i].contact_group]+=1
                         end
                     else 
                         if rand()< (P.Prob_transmission*(1-P.reduction_factor))
                             h[i].swap = LAT
                             h[i].WhoInf = r
+                            #SuccessVector[h[i].contact_group]+=1
                         else
                             Fail_Contact_Matrix[h[i].contact_group,h[r].contact_group]+=1
                             h[i].NumberFails+=1
+                           # FailVector[h[i].contact_group]+=1
                         end
                     end
+               # else FailVector[h[i].contact_group]+=1
                 end
 
             end
 
         end
     end ##close Grid human
+   # return SuccessVector,FailVector 
 
 end
 
@@ -446,3 +461,29 @@ function contact_dynamic3(h::Array{Human},P::InfluenzaParameters,Fail_Contact_Ma
 
 end
 
+function Calculating_Proportion(latent,Incidence,time::Int64)
+
+    Proportion = zeros(Float64,15)
+
+    aux = find(x -> x == maximum(latent),latent) ###finding the maximum
+
+    if length(aux)> 0
+
+        if (length(aux)%2) == 0
+            aux2 = aux[Int64(length(aux)/2)]
+        else
+            aux2 = aux[Int64(ceil(length(aux)/2))]
+        end
+    else 
+        aux2 = time - 1
+    end
+
+    for i = 1:15
+        if sum(Incidence[i,(aux2+1):time]) > 0
+            Proportion[i] = sum(Incidence[i,1:aux2])/sum(Incidence[i,(aux2+1):time])  
+        else Proportion[i] = 0.0
+        end
+    end
+
+    return Proportion
+end

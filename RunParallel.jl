@@ -25,17 +25,23 @@ function dataprocess(results,P::InfluenzaParameters,numberofsims)
     resultsR0 = Vector{Int64}(numberofsims)
     resultsSymp = Vector{Int64}(numberofsims)
     resultsAsymp = Vector{Int64}(numberofsims)
-    resultsNumAge = Matrix{Int64}(15,numberofsims)
-    resultsFailVector = Matrix{Int64}(15,numberofsims)
+    resultsNumAge = Matrix{Int64}(P.grid_size_human,numberofsims)
+    resultsFailVector = Matrix{Int64}(P.grid_size_human,numberofsims)
+    Proportion = Matrix{Float64}(15,numberofsims)
+    resultsInfOrNot = Matrix{Int64}(P.grid_size_human,numberofsims)
+
 
     Infection_Matrix = zeros(Int64,15,15)
     Fail_Matrix = zeros(Int64,15,15)
     Infection_Matrix_average = zeros(Float64,15,15)
     Contact_Matrix_General = zeros(Float64,15,15)
+  
     for i=1:numberofsims
         resultsL[:,i] = results[i][1]
         resultsS[:,i] = results[i][2]
         resultsA[:,i] = results[i][3]
+       # Proportion[:,i] = results[i][14]
+        Proportion[:,i] = results[i][13]
         resultsR0[i] = results[i][4]
         resultsSymp[i] = results[i][5]
         resultsAsymp[i] = results[i][6]
@@ -45,14 +51,15 @@ function dataprocess(results,P::InfluenzaParameters,numberofsims)
         Contact_Matrix_General = Contact_Matrix_General + results[i][9]
         resultsNumAge[:,i] = results[i][10]
         resultsFailVector[:,i] = results[i][11]
-
+        resultsInfOrNot[:,i] = results[i][12]
+       
 
     end
     Infection_Matrix = Infection_Matrix/numberofsims
     Fail_Matrix =  Fail_Matrix/numberofsims
     Contact_Matrix_General = Contact_Matrix_General/numberofsims
-    
-    directory = "TesteApril9/"
+   
+    directory = "May9/"
 
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_latent.dat"),resultsL)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_symp.dat"),resultsS)
@@ -65,6 +72,8 @@ function dataprocess(results,P::InfluenzaParameters,numberofsims)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_ContactMatrixGeneral.dat"),Contact_Matrix_General)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_NumAgeGroup.dat"),resultsNumAge)
     writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_FailVector.dat"),resultsFailVector)
+    writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_InfOrNot.dat"),resultsInfOrNot)
+    writedlm(string("$directory","result","$(P.Prob_transmission)","Ef","$(P.VaccineEfficacy)","PS","$(P.precaution_factorS)","PV","$(P.precaution_factorV)","_Proportion.dat"),Proportion)
 end
 
 function run_main(P::InfluenzaParameters,numberofsims::Int64)
@@ -78,14 +87,14 @@ end
 @everywhere P=InfluenzaParameters(
 
     precaution_factorS = 0.4,
-    precaution_factorV = 0.0,
-    VaccineEfficacy = 0.0,
-    GeneralCoverage = 0,
+    precaution_factorV = 0.4,
+    VaccineEfficacy = 0.2,
+    GeneralCoverage = 1,
     Prob_transmission = 0.079,
     sim_time = 200,
-    grid_size_human = 10000
+    grid_size_human = 1000
 
 )
 
-run_main(P,1000)
+run_main(P,100)
 

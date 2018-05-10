@@ -13,6 +13,7 @@ include("functions.jl")
 
 sigma1 = 0.4
 for ef1 = 0.2:0.1:0.8
+    ef1 = 0.4
 P=InfluenzaParameters(
     precaution_factorS = sigma1,
     precaution_factorV = 0.0,
@@ -49,6 +50,12 @@ end
 
 #################
 ######erasing the age groups
+
+
+if rand()<0.5
+println("ok")
+end
+
 
 for i=1:P.grid_size_human
     humans[i].contact_group = 1
